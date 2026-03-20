@@ -4,7 +4,7 @@ import { useStorage } from '@vueuse/core'
 import { emojiMap } from '~/constants'
 
 const isPlaying = ref(false)
-const currentFood = ref<CurrentFood>()
+const currentFoods = ref<Record<string, CurrentFood | undefined>>({})
 const shakeTitle = ref(false)
 const { data } = await useFetch<RecipeResponse>('/api/recipes')
 const categories = computed(() => (data.value?.categories || []) as string[])
@@ -74,19 +74,31 @@ function startRandom() {
   if (!import.meta.client)
     return
 
-  currentFood.value = undefined
+  currentFoods.value = {}
   shakeTitle.value = true
 
   const loop = () => {
     const allFoods = data.value?.recipes || []
-    const foods = selectedCategories.value.length > 0
-      ? allFoods.filter(r => selectedCategories.value.includes(r.category))
-      : allFoods
-    const list = foods.length ? foods : allFoods
-    const randomFood = list[Math.floor(Math.random() * list.length)]
-    currentFood.value = randomFood
-    createFloatingText(replaceText(randomFood?.name))
+    const newCurrentFoods: Record<string, CurrentFood | undefined> = {}
 
+    // 分类别随机
+    if (selectedCategories.value.length > 0) {
+      selectedCategories.value.forEach((cat) => {
+        const catFoods = allFoods.filter(r => r.category === cat)
+        if (catFoods.length > 0) {
+          const randomFood = catFoods[Math.floor(Math.random() * catFoods.length)]
+          newCurrentFoods[cat] = randomFood
+          createFloatingText(`${getEmoji(cat)} ${cat}：${replaceText(randomFood?.name)}`)
+        }
+      })
+    }
+    else {
+      const randomFood = allFoods[Math.floor(Math.random() * allFoods.length)]
+      newCurrentFoods.all = randomFood
+      createFloatingText(replaceText(randomFood?.name))
+    }
+
+    currentFoods.value = newCurrentFoods
     randomTimer = setTimeout(loop, 100)
   }
 
@@ -161,9 +173,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <FluidCursor v-if="isPC()" />
+  <!-- <FluidCursor v-if="isPC()" /> -->
   <div class="bg-[#E9E9E9] min-h-screen relative overflow-hidden">
-    <Header />
+    <!-- <Header /> -->
     <div
       class="bg-[#E9E9E9] bg-[url('/pic/bg2.png')] transition-all inset-0 absolute z-0 bg-center"
       :class="{ 'animate-paused': isPlaying }" :style="{ animation: `flow 16s linear infinite` }"
@@ -194,12 +206,19 @@ onUnmounted(() => {
       </div>
       <div class="text-center w-full -mt-20">
         <h1
-          class="text-[clamp(2rem,5vw,3rem)] text-gray-800 font-normal mb-6 whitespace-nowrap text-ellipsis overflow-hidden"
+          class="text-[clamp(2rem,5vw,3rem)] text-gray-800 font-normal mb-6 flex flex-wrap gap-x-2 items-center justify-center"
           :class="{ 'animate-shake': shakeTitle }"
         >
           <span class="today">今天</span>
           <span class="eat">吃</span>
-          <FoodItem :current-food="currentFood" />
+          <template v-for="(food, cat, index) in currentFoods" :key="cat">
+            <div class="inline-flex items-center gap-1">
+              <span v-if="getEmoji(cat)" class="text-2xl">{{ getEmoji(cat) }}</span>
+              <span class="text-gray-500 text-lg">{{ cat }}：</span>
+              <FoodItem :current-food="food" />
+            </div>
+            <span v-if="index < Object.keys(currentFoods).length - 1" class="text-gray-400 mx-1">和</span>
+          </template>
           <span class="punctuation">？</span>
         </h1>
 
