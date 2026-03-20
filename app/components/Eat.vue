@@ -12,11 +12,15 @@ const selectedCategories = useStorage<string[]>('selected-categories', [...categ
 const isAllSelected = computed(() => selectedCategories.value.length === categories.value.length)
 const { playAnimation } = useEmojiAnimation()
 
-// 首次加载 categories 时默认选中全部具体分类
+// 首次加载 categories 时默认选中 素菜 和 荤菜
 const stopWatchCategories = watch(categories, (newVal) => {
   if (newVal && newVal.length) {
-    // 默认选中所有具体分类
-    selectedCategories.value = [...newVal]
+    // 默认选中部分分类
+    const defaults = ['素菜', '荤菜']
+    selectedCategories.value = newVal.filter(c => defaults.includes(c))
+    // 如果过滤后为空，则保底选中全部
+    if (selectedCategories.value.length === 0)
+      selectedCategories.value = [...newVal]
     // 初始化完成后停止监听
     stopWatchCategories()
   }
@@ -183,7 +187,7 @@ onUnmounted(() => {
 
     <div id="temp_container" class="inset-0 absolute z-10 overflow-hidden" />
 
-    <div class="px-4 flex flex-col min-h-screen items-center justify-center relative z-20">
+    <div class="px-4 flex flex-col h-screen items-center relative z-20">
       <div class="mb-4 flex flex-wrap gap-3 items-center top-15 justify-center absolute">
         <div class="flex flex-wrap gap-2 justify-center">
           <button
@@ -204,24 +208,31 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-      <div class="text-center w-full -mt-20">
-        <h1
-          class="text-[clamp(2rem,5vw,3rem)] text-gray-800 font-normal mb-6 flex flex-wrap gap-x-2 items-center justify-center"
-          :class="{ 'animate-shake': shakeTitle }"
-        >
-          <span class="today">今天</span>
-          <span class="eat">吃</span>
-          <template v-for="(food, cat, index) in currentFoods" :key="cat">
-            <div class="inline-flex items-center gap-1">
-              <span v-if="getEmoji(cat)" class="text-2xl">{{ getEmoji(cat) }}</span>
-              <span class="text-gray-500 text-lg">{{ cat }}：</span>
-              <FoodItem :current-food="food" />
-            </div>
-            <span v-if="index < Object.keys(currentFoods).length - 1" class="text-gray-400 mx-1">和</span>
-          </template>
-          <span class="punctuation">？</span>
-        </h1>
 
+      <!-- 结果显示区域：占据剩余空间并垂直居中 -->
+      <div class="flex-grow flex flex-col items-center justify-center w-full max-w-4xl px-2 mt-20">
+        <div class="h-[240px] md:h-[320px] flex items-center justify-center w-full">
+          <h1
+            class="flex flex-wrap items-center justify-center gap-x-2 font-normal text-gray-800 text-[clamp(1.5rem,4vw,2.5rem)]"
+            :class="{ 'animate-shake': shakeTitle }"
+          >
+            <span class="today">今天</span>
+            <span class="eat">吃</span>
+            <template v-for="(food, cat, index) in currentFoods" :key="cat">
+              <div class="inline-flex items-center gap-1">
+                <span v-if="getEmoji(cat)" class="text-xl">{{ getEmoji(cat) }}</span>
+                <span class="text-base text-gray-500 md:text-lg">{{ cat }}：</span>
+                <FoodItem :current-food="food" />
+              </div>
+              <span v-if="index < Object.keys(currentFoods).length - 1" class="text-gray-400 mx-1">和</span>
+            </template>
+            <span class="punctuation">？</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- 按钮区域：在手机端靠近底部，在桌面端保持适中距离 -->
+      <div class="pb-16 md:pb-24">
         <button id="start" class="outline-none cursor-pointer" @click="togglePlay">
           <FancyButton :text="isPlaying ? '停止' : '开始'" />
         </button>
